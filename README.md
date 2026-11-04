@@ -180,6 +180,33 @@ PORT=5000
 - `PUT /api/todos/:id` - Update todo
 - `DELETE /api/todos/:id` - Delete todo
 
+### Todo due dates
+
+Todos include `dueDate`: a calendar date string (`YYYY-MM-DD`) or `null`.
+Dates have no time or timezone. Past dates are allowed.
+
+- `POST /api/todos`: send `{ "title": "Pay rent", "dueDate": "2026-12-01" }`.
+  Omit `dueDate` or send `null` for no due date.
+- `PUT /api/todos/:id`: send `{ "dueDate": "2026-12-02" }` to set or change it.
+  Send `{ "dueDate": null }` to clear it. Omit the field to keep its current value.
+- Create, list, and update responses include `dueDate` in the same format.
+- Invalid dates, timestamps, empty strings, and non-string values return HTTP 400
+  with `{ "error": "dueDate must be a valid YYYY-MM-DD date or null" }`.
+  The supported year range is 0001–9999.
+- All todo routes require a bearer token. Updating another user's todo returns 404.
+
+Deploy the backend migration before the web app:
+
+```bash
+cd backend
+npx prisma migrate deploy
+npx prisma generate
+```
+
+The migration adds a nullable column. Existing todos keep `dueDate: null`.
+In the web app, use the date picker beside a todo and select **Save date**.
+Use **Clear date** to remove it.
+
 ## 🔍 Troubleshooting
 
 ### Common Issues

@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const authMiddleware = require("../middleware/auth");
+const { parseDueDate, serializeTodo } = require("../utils/dueDate");
 
 const router = express.Router();
 
@@ -17,11 +18,12 @@ router.get("/", async (req, res) => {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-    res.json(todos);
+    res.json(todos.map(serializeTodo));
   } catch (err) {
     console.error("Error fetching todos:", err);
     res.status(500).json({ error: "Server error" });
@@ -31,6 +33,12 @@ router.get("/", async (req, res) => {
 // POST /api/todos - Create new todo
 router.post("/", async (req, res) => {
   const { title } = req.body;
+  let dueDate;
+  try {
+    dueDate = parseDueDate(req.body.dueDate);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 
   if (!title) {
     return res.status(400).json({ error: "Title is required" });
@@ -40,17 +48,19 @@ router.post("/", async (req, res) => {
     const todo = await prisma.todo.create({
       data: {
         title,
+        dueDate,
         userId: req.user.id,
       },
       select: {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-    res.status(201).json(todo);
+    res.status(201).json(serializeTodo(todo));
   } catch (err) {
     console.error("Error creating todo:", err);
     res.status(500).json({ error: "Server error" });
@@ -61,6 +71,12 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { title, completed } = req.body;
+  let dueDate;
+  try {
+    dueDate = parseDueDate(req.body.dueDate);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
   const todoId = parseInt(id, 10);
 
   if (completed !== undefined && typeof completed !== "boolean") {
@@ -78,17 +94,18 @@ router.put("/:id", async (req, res) => {
 
     const updated = await prisma.todo.update({
       where: { id: todoId },
-      data: { title, completed },
+      data: { title, completed, dueDate },
       select: {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    res.json(updated);
+    res.json(serializeTodo(updated));
   } catch (err) {
     console.error("Error updating todo:", err);
     res.status(500).json({ error: "Server error" });

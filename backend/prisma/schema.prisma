@@ -21,6 +21,7 @@ model Todo {
   id        Int      @id @default(autoincrement())
   title     String
   completed Boolean  @default(false)
+  dueDate   DateTime? @db.Date
   createdAt DateTime @default(now())  // ✅ Needed for sorting
   updatedAt DateTime @updatedAt
 
