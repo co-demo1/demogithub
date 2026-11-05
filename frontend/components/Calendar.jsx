@@ -43,7 +43,7 @@ export default function Calendar() {
   }, [weekStart]);
 
   const reload = async () => {
-    const data = await reload();
+    const data = await loadAppointments();
     if (data) setAppointments(data);
   };
 
