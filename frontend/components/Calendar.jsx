@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { deleteData, fetchData, postData } from "@/lib/fetchData";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Bookable hourly slots: 09:00 to 16:00 starts (last slot ends at 17:00)
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
@@ -42,21 +42,17 @@ export default function Calendar() {
     return fetchData(`appointments?from=${from}&to=${to}`);
   }, [weekStart]);
 
-  const reload = async () => {
+  // Ignore responses for a week the user has already navigated away from
+  const requestId = useRef(0);
+  const reload = useCallback(async () => {
+    const id = ++requestId.current;
     const data = await loadAppointments();
-    if (data) setAppointments(data);
-  };
+    if (id === requestId.current && data) setAppointments(data);
+  }, [loadAppointments]);
 
   useEffect(() => {
-    // Ignore responses for a week the user has already navigated away from
-    let active = true;
-    loadAppointments().then((data) => {
-      if (active && data) setAppointments(data);
-    });
-    return () => {
-      active = false;
-    };
-  }, [loadAppointments]);
+    reload();
+  }, [reload]);
 
   const findAppointment = (slot) =>
     appointments.find((a) => new Date(a.start).getTime() === slot.getTime());

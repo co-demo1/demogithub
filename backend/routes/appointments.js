@@ -54,9 +54,10 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Title and a valid start are required" });
   }
 
-  // Slots are whole hours in the future (the hour range is a UI rule)
-  if (startDate.getTime() % 3600000 !== 0 || startDate <= new Date()) {
-    return res.status(400).json({ error: "Start must be a future whole-hour slot" });
+  // Slots start on the hour in the user's local time; UTC offsets can be
+  // quarter hours, so only quarter-hour alignment is checked here
+  if (startDate.getTime() % 900000 !== 0 || startDate <= new Date()) {
+    return res.status(400).json({ error: "Start must be a future time slot" });
   }
 
   try {
@@ -76,9 +77,9 @@ router.post("/", async (req, res) => {
 
 // DELETE /api/appointments/:id - Cancel an appointment
 router.delete("/:id", async (req, res) => {
-  const appointmentId = parseInt(req.params.id, 10);
+  const appointmentId = Number(req.params.id);
 
-  if (Number.isNaN(appointmentId)) {
+  if (!/^\d+$/.test(req.params.id)) {
     return res.status(404).json({ error: "Appointment not found" });
   }
 
