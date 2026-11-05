@@ -49,7 +49,11 @@ export default function TodoApp() {
       setTitle("");
       setDueDate("");
     } else {
-      setError("Could not add the task.");
+      setError(
+        dueDate
+          ? "Could not add the task. The due date cannot be in the past."
+          : "Could not add the task."
+      );
     }
     setAdding(false);
   };
