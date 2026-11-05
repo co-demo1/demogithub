@@ -17,6 +17,7 @@ export default function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -39,12 +40,20 @@ export default function TodoApp() {
     if (!trimmed) return;
     setAdding(true);
     setError("");
-    const todo = await postData("todos", { title: trimmed });
+    const todo = await postData("todos", {
+      title: trimmed,
+      dueDate: dueDate || null,
+    });
     if (todo) {
       setTodos((prev) => [todo, ...prev]);
       setTitle("");
+      setDueDate("");
     } else {
-      setError("Could not add the task.");
+      setError(
+        dueDate
+          ? "Could not add the task. The due date cannot be in the past."
+          : "Could not add the task."
+      );
     }
     setAdding(false);
   };
@@ -97,13 +106,20 @@ export default function TodoApp() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleAdd} className="flex gap-2">
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-2">
           <Input
             aria-label="New task"
             placeholder="What needs to be done?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-11"
+            className="h-11 flex-1 min-w-48"
+          />
+          <Input
+            type="date"
+            aria-label="Due date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="h-11 w-44 shrink-0"
           />
           <Button
             type="submit"
@@ -143,6 +159,11 @@ export default function TodoApp() {
               >
                 {todo.title}
               </label>
+              {todo.dueDate && (
+                <span className="text-sm whitespace-nowrap text-muted-foreground">
+                  Due {todo.dueDate.slice(0, 10)}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
