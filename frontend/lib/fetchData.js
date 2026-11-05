@@ -9,13 +9,11 @@ const getToken = () => {
   return tokenCookie?.split("=")[1];
 };
 
-const token = getToken();
-
 export async function fetchData(endpoint) {
   return fetch(`${baseURL}/${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
   })
     .then((response) => {
@@ -34,7 +32,7 @@ export async function postData(endpoint, data) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
     body: JSON.stringify(data),
   })
@@ -54,7 +52,7 @@ export async function putData(endpoint, data) {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
     body: JSON.stringify(data),
   })
@@ -74,14 +72,14 @@ export async function deleteData(endpoint) {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
   })
     .then((response) => {
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
-      return response.json();
+      return true;
     })
     .catch((error) => {
       console.error("There was a problem with the fetch operation:", error);
