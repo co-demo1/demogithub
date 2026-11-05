@@ -13,10 +13,26 @@ import { deleteData, fetchData, postData, putData } from "@/lib/fetchData";
 import { ListTodo, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+// Today's date in the user's own timezone, as "YYYY-MM-DD".
+const localToday = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 10);
+};
+
+const formatDueDate = (dueDate) =>
+  new Date(dueDate).toLocaleDateString(undefined, {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
 export default function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -37,12 +53,20 @@ export default function TodoApp() {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
+    if (dueDate && dueDate < localToday()) {
+      setError("Due date cannot be in the past.");
+      return;
+    }
     setAdding(true);
     setError("");
-    const todo = await postData("todos", { title: trimmed });
+    const todo = await postData("todos", {
+      title: trimmed,
+      dueDate: dueDate || null,
+    });
     if (todo) {
       setTodos((prev) => [todo, ...prev]);
       setTitle("");
+      setDueDate("");
     } else {
       setError("Could not add the task.");
     }
@@ -92,8 +116,8 @@ export default function TodoApp() {
           {loading
             ? "Loading..."
             : loadFailed
-            ? "Could not load your tasks."
-            : `${todos.length - doneCount} open, ${doneCount} done`}
+              ? "Could not load your tasks."
+              : `${todos.length - doneCount} open, ${doneCount} done`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -104,6 +128,14 @@ export default function TodoApp() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="h-11"
+          />
+          <Input
+            type="date"
+            aria-label="Due date"
+            min={localToday()}
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="h-11 w-44 shrink-0"
           />
           <Button
             type="submit"
@@ -127,33 +159,51 @@ export default function TodoApp() {
         )}
 
         <ul className="divide-y rounded-md border empty:hidden">
-          {todos.map((todo) => (
-            <li key={todo.id} className="flex items-center gap-3 px-4 py-3">
-              <Checkbox
-                id={`todo-${todo.id}`}
-                checked={todo.completed}
-                disabled={pendingIds.has(todo.id)}
-                onCheckedChange={() => handleToggle(todo)}
-              />
-              <label
-                htmlFor={`todo-${todo.id}`}
-                className={`flex-1 break-words ${
-                  todo.completed ? "line-through text-muted-foreground" : ""
-                }`}
-              >
-                {todo.title}
-              </label>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete ${todo.title}`}
-                disabled={pendingIds.has(todo.id)}
-                onClick={() => handleDelete(todo)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </li>
-          ))}
+          {todos.map((todo) => {
+            const overdue =
+              todo.dueDate &&
+              !todo.completed &&
+              todo.dueDate.slice(0, 10) < localToday();
+            return (
+              <li key={todo.id} className="flex items-center gap-3 px-4 py-3">
+                <Checkbox
+                  id={`todo-${todo.id}`}
+                  checked={todo.completed}
+                  disabled={pendingIds.has(todo.id)}
+                  onCheckedChange={() => handleToggle(todo)}
+                />
+                <label
+                  htmlFor={`todo-${todo.id}`}
+                  className={`flex-1 break-words ${
+                    todo.completed ? "line-through text-muted-foreground" : ""
+                  }`}
+                >
+                  {todo.title}
+                </label>
+                {todo.dueDate && (
+                  <span
+                    className={`shrink-0 text-sm ${
+                      overdue
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {overdue ? "Overdue · " : "Due "}
+                    {formatDueDate(todo.dueDate)}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${todo.title}`}
+                  disabled={pendingIds.has(todo.id)}
+                  onClick={() => handleDelete(todo)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
     </Card>

@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const authMiddleware = require("../middleware/auth");
+const { parseDueDate } = require("../utils/dueDate");
 
 const router = express.Router();
 
@@ -17,6 +18,7 @@ router.get("/", async (req, res) => {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -36,16 +38,23 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Title is required" });
   }
 
+  const dueDate = parseDueDate(req.body.dueDate);
+  if (dueDate.error) {
+    return res.status(400).json({ error: dueDate.error });
+  }
+
   try {
     const todo = await prisma.todo.create({
       data: {
         title,
+        dueDate: dueDate.value,
         userId: req.user.id,
       },
       select: {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -67,6 +76,14 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ error: "Invalid completed status" });
   }
 
+  // Only a due date sent in this request is checked, so a task that is
+  // already overdue can still be renamed or completed.
+  const dueDate =
+    req.body.dueDate !== undefined ? parseDueDate(req.body.dueDate) : {};
+  if (dueDate.error) {
+    return res.status(400).json({ error: dueDate.error });
+  }
+
   try {
     const existing = await prisma.todo.findUnique({
       where: { id: todoId },
@@ -78,11 +95,12 @@ router.put("/:id", async (req, res) => {
 
     const updated = await prisma.todo.update({
       where: { id: todoId },
-      data: { title, completed },
+      data: { title, completed, dueDate: dueDate.value },
       select: {
         id: true,
         title: true,
         completed: true,
+        dueDate: true,
         createdAt: true,
         updatedAt: true,
       },
