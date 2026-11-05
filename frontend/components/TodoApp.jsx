@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -10,13 +11,34 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { deleteData, fetchData, postData, putData } from "@/lib/fetchData";
-import { ListTodo, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CalendarDays, ListTodo, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import CalendarView from "./CalendarView";
+
+// datetime-local value -> ISO start of that local hour, or null when empty
+const toSlot = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  date.setMinutes(0, 0, 0);
+  return date.toISOString();
+};
+
+const formatSlot = (iso) =>
+  new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 export default function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
+  const [slot, setSlot] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const closeCalendar = useCallback(() => setCalendarOpen(false), []);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -39,10 +61,20 @@ export default function TodoApp() {
     if (!trimmed) return;
     setAdding(true);
     setError("");
-    const todo = await postData("todos", { title: trimmed });
+    const scheduledAt = toSlot(slot);
+    const taken = scheduledAt && todos.some(
+      (t) => t.scheduledAt && new Date(t.scheduledAt).getTime() === new Date(scheduledAt).getTime()
+    );
+    if (taken) {
+      setError("That time slot is already booked.");
+      setAdding(false);
+      return;
+    }
+    const todo = await postData("todos", { title: trimmed, scheduledAt });
     if (todo) {
       setTodos((prev) => [todo, ...prev]);
       setTitle("");
+      setSlot("");
     } else {
       setError("Could not add the task.");
     }
@@ -95,15 +127,30 @@ export default function TodoApp() {
             ? "Could not load your tasks."
             : `${todos.length - doneCount} open, ${doneCount} done`}
         </CardDescription>
+        <CardAction>
+          <Button variant="outline" onClick={() => setCalendarOpen(true)}>
+            <CalendarDays className="w-4 h-4" />
+            View Calendar
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleAdd} className="flex gap-2">
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-2">
           <Input
             aria-label="New task"
             placeholder="What needs to be done?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-11"
+            className="h-11 flex-1 min-w-48"
+          />
+          <Input
+            type="datetime-local"
+            step={3600}
+            aria-label="Time slot (optional)"
+            title="Time slot (optional)"
+            value={slot}
+            onChange={(e) => setSlot(e.target.value)}
+            className="h-11 w-auto"
           />
           <Button
             type="submit"
@@ -142,6 +189,11 @@ export default function TodoApp() {
                 }`}
               >
                 {todo.title}
+                {todo.scheduledAt && (
+                  <span className="block text-xs text-muted-foreground">
+                    {formatSlot(todo.scheduledAt)}
+                  </span>
+                )}
               </label>
               <Button
                 variant="ghost"
@@ -156,6 +208,7 @@ export default function TodoApp() {
           ))}
         </ul>
       </CardContent>
+      {calendarOpen && <CalendarView todos={todos} onClose={closeCalendar} />}
     </Card>
   );
 }
