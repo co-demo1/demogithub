@@ -15,6 +15,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   todos     Todo[]
+  appointments Appointment[]
 }
 
 model Todo {
@@ -26,4 +27,16 @@ model Todo {
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  title     String
+  start     DateTime
+  createdAt DateTime @default(now())
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, start])
 }
