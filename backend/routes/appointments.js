@@ -14,6 +14,10 @@ router.get("/", async (req, res) => {
   const where = { userId: req.user.id };
   const { from, to } = req.query;
 
+  if ((from && typeof from !== "string") || (to && typeof to !== "string")) {
+    return res.status(400).json({ error: "Invalid date range" });
+  }
+
   if (from || to) {
     const gte = from ? new Date(from) : undefined;
     const lt = to ? new Date(to) : undefined;
@@ -41,13 +45,23 @@ router.post("/", async (req, res) => {
   const { title, start } = req.body;
   const startDate = new Date(start);
 
-  if (!title || !start || isNaN(startDate)) {
+  if (
+    typeof title !== "string" ||
+    !title.trim() ||
+    typeof start !== "string" ||
+    isNaN(startDate)
+  ) {
     return res.status(400).json({ error: "Title and a valid start are required" });
+  }
+
+  // Slots are whole hours in the future (the hour range is a UI rule)
+  if (startDate.getTime() % 3600000 !== 0 || startDate <= new Date()) {
+    return res.status(400).json({ error: "Start must be a future whole-hour slot" });
   }
 
   try {
     const appointment = await prisma.appointment.create({
-      data: { title, start: startDate, userId: req.user.id },
+      data: { title: title.trim(), start: startDate, userId: req.user.id },
       select,
     });
     res.status(201).json(appointment);
@@ -63,6 +77,10 @@ router.post("/", async (req, res) => {
 // DELETE /api/appointments/:id - Cancel an appointment
 router.delete("/:id", async (req, res) => {
   const appointmentId = parseInt(req.params.id, 10);
+
+  if (Number.isNaN(appointmentId)) {
+    return res.status(404).json({ error: "Appointment not found" });
+  }
 
   try {
     const existing = await prisma.appointment.findUnique({

@@ -39,12 +39,23 @@ export default function Calendar() {
   const loadAppointments = useCallback(async () => {
     const from = weekStart.toISOString();
     const to = addDays(weekStart, 7).toISOString();
-    const data = await fetchData(`appointments?from=${from}&to=${to}`);
-    if (data) setAppointments(data);
+    return fetchData(`appointments?from=${from}&to=${to}`);
   }, [weekStart]);
 
+  const reload = async () => {
+    const data = await reload();
+    if (data) setAppointments(data);
+  };
+
   useEffect(() => {
-    loadAppointments();
+    // Ignore responses for a week the user has already navigated away from
+    let active = true;
+    loadAppointments().then((data) => {
+      if (active && data) setAppointments(data);
+    });
+    return () => {
+      active = false;
+    };
   }, [loadAppointments]);
 
   const findAppointment = (slot) =>
@@ -67,18 +78,18 @@ export default function Calendar() {
     });
     if (!created) {
       setError("Could not book this slot. It may already be taken.");
-      await loadAppointments();
+      await reload();
       return;
     }
     setSelected(null);
     setTitle("");
     setError("");
-    await loadAppointments();
+    await reload();
   };
 
   const cancel = async (appointment) => {
     await deleteData(`appointments/${appointment.id}`);
-    await loadAppointments();
+    await reload();
   };
 
   const now = new Date();
