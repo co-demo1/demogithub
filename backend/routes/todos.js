@@ -16,6 +16,10 @@ const slotTaken = async (userId, scheduledAt, exceptId) => {
   return Boolean(clash);
 };
 
+// Unique (userId, scheduledAt) violation: a concurrent booking won the slot
+const isSlotClash = (err) => err.code === "P2002";
+const SLOT_TAKEN = { error: "That time slot is already booked" };
+
 // GET /api/todos - Get all todos for logged-in user
 router.get("/", async (req, res) => {
   try {
@@ -53,7 +57,7 @@ router.post("/", async (req, res) => {
 
   try {
     if (slot.value && (await slotTaken(req.user.id, slot.value))) {
-      return res.status(409).json({ error: "That time slot is already booked" });
+      return res.status(409).json(SLOT_TAKEN);
     }
 
     const todo = await prisma.todo.create({
@@ -73,6 +77,7 @@ router.post("/", async (req, res) => {
     });
     res.status(201).json(todo);
   } catch (err) {
+    if (isSlotClash(err)) return res.status(409).json(SLOT_TAKEN);
     console.error("Error creating todo:", err);
     res.status(500).json({ error: "Server error" });
   }
@@ -103,7 +108,7 @@ router.put("/:id", async (req, res) => {
     }
 
     if (slot.value && (await slotTaken(req.user.id, slot.value, todoId))) {
-      return res.status(409).json({ error: "That time slot is already booked" });
+      return res.status(409).json(SLOT_TAKEN);
     }
 
     const updated = await prisma.todo.update({
@@ -121,6 +126,7 @@ router.put("/:id", async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    if (isSlotClash(err)) return res.status(409).json(SLOT_TAKEN);
     console.error("Error updating todo:", err);
     res.status(500).json({ error: "Server error" });
   }

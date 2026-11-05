@@ -10,16 +10,22 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { deleteData, fetchData, postData, putData } from "@/lib/fetchData";
+import {
+  deleteData,
+  fetchData,
+  postDataWithStatus,
+  putData,
+} from "@/lib/fetchData";
 import { CalendarDays, ListTodo, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import CalendarView from "./CalendarView";
 
-// datetime-local value -> ISO start of that local hour, or null when empty
+// datetime-local value -> ISO start of that local hour, null when empty,
+// undefined when it is not on the hour
 const toSlot = (value) => {
   if (!value) return null;
   const date = new Date(value);
-  date.setMinutes(0, 0, 0);
+  if (date.getMinutes() || date.getSeconds()) return undefined;
   return date.toISOString();
 };
 
@@ -62,6 +68,11 @@ export default function TodoApp() {
     setAdding(true);
     setError("");
     const scheduledAt = toSlot(slot);
+    if (scheduledAt === undefined) {
+      setError("Time slots start on the hour.");
+      setAdding(false);
+      return;
+    }
     const taken = scheduledAt && todos.some(
       (t) => t.scheduledAt && new Date(t.scheduledAt).getTime() === new Date(scheduledAt).getTime()
     );
@@ -70,11 +81,16 @@ export default function TodoApp() {
       setAdding(false);
       return;
     }
-    const todo = await postData("todos", { title: trimmed, scheduledAt });
+    const { status, data: todo } = await postDataWithStatus("todos", {
+      title: trimmed,
+      scheduledAt,
+    });
     if (todo) {
       setTodos((prev) => [todo, ...prev]);
       setTitle("");
       setSlot("");
+    } else if (status === 409) {
+      setError("That time slot is already booked.");
     } else {
       setError("Could not add the task.");
     }
