@@ -47,6 +47,25 @@ export async function postData(endpoint, data) {
     });
 }
 
+// Like postData, but also reports the status of a failed request
+export async function postDataWithStatus(endpoint, data) {
+  try {
+    const response = await fetch(`${baseURL}/${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) return { status: response.status };
+    return { status: response.status, data: await response.json() };
+  } catch (error) {
+    console.error("There was a problem with the fetch operation:", error);
+    return { status: 0 };
+  }
+}
+
 export async function putData(endpoint, data) {
   return fetch(`${baseURL}/${endpoint}`, {
     method: "PUT",
