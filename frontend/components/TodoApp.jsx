@@ -19,12 +19,14 @@ export default function TodoApp() {
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [pendingIds, setPendingIds] = useState(new Set());
 
   useEffect(() => {
     const loadTodos = async () => {
       const data = await fetchData("todos");
       if (data) setTodos(data);
-      else setError("Could not load your tasks.");
+      else setLoadFailed(true);
       setLoading(false);
     };
 
@@ -47,8 +49,16 @@ export default function TodoApp() {
     setAdding(false);
   };
 
+  const setPending = (id, pending) =>
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      pending ? next.add(id) : next.delete(id);
+      return next;
+    });
+
   const handleToggle = async (todo) => {
     setError("");
+    setPending(todo.id, true);
     const updated = await putData(`todos/${todo.id}`, {
       completed: !todo.completed,
     });
@@ -57,16 +67,19 @@ export default function TodoApp() {
     } else {
       setError("Could not update the task.");
     }
+    setPending(todo.id, false);
   };
 
   const handleDelete = async (todo) => {
     setError("");
+    setPending(todo.id, true);
     const ok = await deleteData(`todos/${todo.id}`);
     if (ok) {
       setTodos((prev) => prev.filter((t) => t.id !== todo.id));
     } else {
       setError("Could not delete the task.");
     }
+    setPending(todo.id, false);
   };
 
   const doneCount = todos.filter((t) => t.completed).length;
@@ -78,6 +91,8 @@ export default function TodoApp() {
         <CardDescription>
           {loading
             ? "Loading..."
+            : loadFailed
+            ? "Could not load your tasks."
             : `${todos.length - doneCount} open, ${doneCount} done`}
         </CardDescription>
       </CardHeader>
@@ -104,7 +119,7 @@ export default function TodoApp() {
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
 
-        {!loading && todos.length === 0 && !error && (
+        {!loading && !loadFailed && todos.length === 0 && (
           <div className="flex flex-col items-center py-10 text-muted-foreground">
             <ListTodo className="w-10 h-10 mb-2" />
             <p>No tasks yet. Add your first one above.</p>
@@ -117,6 +132,7 @@ export default function TodoApp() {
               <Checkbox
                 id={`todo-${todo.id}`}
                 checked={todo.completed}
+                disabled={pendingIds.has(todo.id)}
                 onCheckedChange={() => handleToggle(todo)}
               />
               <label
@@ -131,6 +147,7 @@ export default function TodoApp() {
                 variant="ghost"
                 size="icon"
                 aria-label={`Delete ${todo.title}`}
+                disabled={pendingIds.has(todo.id)}
                 onClick={() => handleDelete(todo)}
               >
                 <Trash2 className="w-4 h-4" />
