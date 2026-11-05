@@ -13,10 +13,18 @@ import { deleteData, fetchData, postData, putData } from "@/lib/fetchData";
 import { ListTodo, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+// Today as "YYYY-MM-DD" in the user's local time zone.
+const localToday = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 export default function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -37,12 +45,20 @@ export default function TodoApp() {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
+    if (dueDate && dueDate < localToday()) {
+      setError("Due date cannot be in the past.");
+      return;
+    }
     setAdding(true);
     setError("");
-    const todo = await postData("todos", { title: trimmed });
+    const todo = await postData("todos", {
+      title: trimmed,
+      dueDate: dueDate || null,
+    });
     if (todo) {
       setTodos((prev) => [todo, ...prev]);
       setTitle("");
+      setDueDate("");
     } else {
       setError("Could not add the task.");
     }
@@ -97,13 +113,21 @@ export default function TodoApp() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleAdd} className="flex gap-2">
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-2">
           <Input
             aria-label="New task"
             placeholder="What needs to be done?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-11"
+            className="h-11 flex-1 min-w-48"
+          />
+          <Input
+            type="date"
+            aria-label="Due date"
+            min={localToday()}
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="h-11 w-44 shrink-0"
           />
           <Button
             type="submit"
@@ -143,6 +167,17 @@ export default function TodoApp() {
               >
                 {todo.title}
               </label>
+              {todo.dueDate && (
+                <span
+                  className={`text-sm whitespace-nowrap ${
+                    !todo.completed && todo.dueDate.slice(0, 10) < localToday()
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  Due {todo.dueDate.slice(0, 10)}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
